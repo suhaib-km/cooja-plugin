@@ -64,6 +64,87 @@ public class SimulationControlPlugin implements Plugin {
 
     private void addMote(string name)
     {
+
+        MoteType moteToAdd;
+        MoteType[] types = simulation.getMoteTypes();
+        for (MoteType type : types) 
+        {
+            logger.error("TYPES: " + type);
+            logger.error("DESCRIPTION: " + type.getDescription());   
+            logger.error("=============="); 
+
+        }
+        /* 
+                returnValue = new MoteAdditions(((Number) numberOfMotesField.getValue()).intValue(),
+            Objects.requireNonNull(positionDistributionBox.getSelectedItem()).toString(),
+            ((Number) startX.getValue()).doubleValue(), ((Number) endX.getValue()).doubleValue(),
+            ((Number) startY.getValue()).doubleValue(), ((Number) endY.getValue()).doubleValue(),
+            ((Number) startZ.getValue()).doubleValue(), ((Number) endZ.getValue()).doubleValue());
+
+            var newMoteInfo = AddMoteDialog.showDialog(newMoteType, posDescriptions.toArray(new String[0]));
+        if (newMoteInfo == null) return;
+        Class<? extends Positioner> positionerClass = null;
+        for (var positioner : cooja.getRegisteredPositioners()) {
+          if (Cooja.getDescriptionOf(positioner).equals(newMoteInfo.positioner())) {
+            positionerClass = positioner;
+            break;
+          }
+        }
+        if (positionerClass == null) {
+          return;
+        }
+        Positioner positioner;
+        try {
+          var constr = positionerClass.getConstructor(int.class, double.class, double.class,
+                  double.class, double.class, double.class, double.class);
+          positioner = constr.newInstance(newMoteInfo.numMotes(), newMoteInfo.startX(), newMoteInfo.endX(),
+                   newMoteInfo.startY(), newMoteInfo.endY(), newMoteInfo.startZ(), newMoteInfo.endZ());
+        } catch (Exception e1) {
+          logger.error("Exception when creating " + positionerClass + ": ", e1);
+          return;
+        }
+
+        ArrayList<Mote> newMotes = new ArrayList<>();
+        while (newMotes.size() < newMoteInfo.numMotes()) {
+          try {
+            newMotes.add(newMoteType.generateMote(cooja.getSimulation()));
+          } catch (MoteType.MoteTypeCreationException e2) {
+            JOptionPane.showMessageDialog(frame,
+                    "Could not create mote.\nException message: \"" + e2.getMessage() + "\"\n\n",
+                    "Mote creation failed", JOptionPane.ERROR_MESSAGE);
+            return;
+          }
+        }
+        // Position new motes.
+        for (var newMote : newMotes) {
+          Position newPosition = newMote.getInterfaces().getPosition();
+          if (newPosition != null) {
+            double[] next = positioner.getNextPosition();
+            newPosition.setCoordinates(next.length > 0 ? next[0] : 0, next.length > 1 ? next[1] : 0, next.length > 2 ? next[2] : 0);
+          }
+        }
+
+        // Set unique mote id's for all new motes.
+        // TODO: ID should be provided differently; not rely on the unsafe MoteID interface.
+        int nextMoteID = 1;
+        for (Mote m : cooja.getSimulation().getMotes()) {
+          int existing = m.getID();
+          if (existing >= nextMoteID) {
+            nextMoteID = existing + 1;
+          }
+        }
+        for (Mote m : newMotes) {
+          var moteID = m.getInterfaces().getMoteID();
+          if (moteID != null) {
+            moteID.setMoteID(nextMoteID++);
+          } else {
+            logger.warn("Can't set mote ID (no mote ID interface): " + m);
+          }
+        }
+        for (var mote : newMotes) {
+          cooja.getSimulation().addMote(mote);
+        }
+         */
     }
 
     private void removeMote(Cooja cooja)
