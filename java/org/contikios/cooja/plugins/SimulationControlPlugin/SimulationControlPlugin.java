@@ -116,6 +116,11 @@ public class SimulationControlPlugin implements Plugin {
         simulation.startSimulation(false);
     }
 
+    public void stopSimulation()
+    {
+        simulation.stopSimulation();
+    }
+
     @Override
     public JInternalFrame getCooja()
     {
