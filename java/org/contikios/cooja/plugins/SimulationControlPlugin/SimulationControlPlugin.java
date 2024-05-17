@@ -117,6 +117,7 @@ public class SimulationControlPlugin implements Plugin {
     public void removeMote(int index)
     {
         simulation.removeMote(motes.get(index));
+        motes.remove(index);   
     }
 
     public void stepSimulation()
