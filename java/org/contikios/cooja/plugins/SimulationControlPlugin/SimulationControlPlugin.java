@@ -35,6 +35,8 @@ public class SimulationControlPlugin implements Plugin {
         this.cooja = cooja;
     }
 
+    private final ArrayList<Mote> motes = new ArrayList<>();
+
     
     @Override
     public void startPlugin() 
@@ -106,8 +108,15 @@ public class SimulationControlPlugin implements Plugin {
             }
           }
           for (var mote : newMotes) {
+            motes.add(mote);
             cooja.getSimulation().addMote(mote);
           }
+    }
+
+
+    public void removeMote(int index)
+    {
+        simulation.removeMote(motes.get(index));
     }
 
     public void stepSimulation()
