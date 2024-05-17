@@ -110,6 +110,10 @@ public class SimulationControlPlugin implements Plugin {
           }
     }
 
+    public void stepSimulation()
+    {
+        simulation.stepMillisecondSimulation();
+    }
 
     public void runSimulation()
     {
