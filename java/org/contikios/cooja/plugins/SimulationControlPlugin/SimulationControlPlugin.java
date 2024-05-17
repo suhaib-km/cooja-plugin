@@ -8,8 +8,10 @@ import org.contikios.cooja.Plugin;
 import org.contikios.cooja.ClassDescription;
 import org.contikios.cooja.dialogs.CreateSimDialog;
 import org.contikios.cooja.PluginType;
+import org.contikios.cooja.interfaces.Position;
 import org.contikios.cooja.Simulation;
 import org.contikios.cooja.MoteType;
+import org.contikios.cooja.Mote;
 import org.jdom2.Element;
 import org.jdom2.input.DOMBuilder;
 import org.slf4j.Logger;
@@ -18,9 +20,6 @@ import javax.swing.JInternalFrame;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.DocumentBuilder;
 import org.w3c.dom.Document;
-
-
-
 
 @ClassDescription("ControlPlugin")
 @PluginType(PluginType.PType.COOJA_STANDARD_PLUGIN)
@@ -55,96 +54,60 @@ public class SimulationControlPlugin implements Plugin {
             return;
         }
 
-        
-
         cooja.setSimulation(sim);
         simulation = sim;
         logger.error("hit sim creation");
     }
 
-    private void addMote(string name)
+    private void addMote(String moteType, int amountToAdd, double[][] positions)
     {
 
-        MoteType moteToAdd;
+        MoteType moteToAdd = null;
         MoteType[] types = simulation.getMoteTypes();
         for (MoteType type : types) 
         {
-            logger.error("TYPES: " + type);
-            logger.error("DESCRIPTION: " + type.getDescription());   
-            logger.error("=============="); 
-
+            if (moteType.equals(type.getDescription())) moteToAdd = type;
         }
-        /* 
-                returnValue = new MoteAdditions(((Number) numberOfMotesField.getValue()).intValue(),
-            Objects.requireNonNull(positionDistributionBox.getSelectedItem()).toString(),
-            ((Number) startX.getValue()).doubleValue(), ((Number) endX.getValue()).doubleValue(),
-            ((Number) startY.getValue()).doubleValue(), ((Number) endY.getValue()).doubleValue(),
-            ((Number) startZ.getValue()).doubleValue(), ((Number) endZ.getValue()).doubleValue());
-
-            var newMoteInfo = AddMoteDialog.showDialog(newMoteType, posDescriptions.toArray(new String[0]));
-        if (newMoteInfo == null) return;
-        Class<? extends Positioner> positionerClass = null;
-        for (var positioner : cooja.getRegisteredPositioners()) {
-          if (Cooja.getDescriptionOf(positioner).equals(newMoteInfo.positioner())) {
-            positionerClass = positioner;
-            break;
-          }
+        if (moteToAdd == null) 
+        {
+            logger.error("mote type not found: " + moteType);
+            return;
         }
-        if (positionerClass == null) {
-          return;
-        }
-        Positioner positioner;
-        try {
-          var constr = positionerClass.getConstructor(int.class, double.class, double.class,
-                  double.class, double.class, double.class, double.class);
-          positioner = constr.newInstance(newMoteInfo.numMotes(), newMoteInfo.startX(), newMoteInfo.endX(),
-                   newMoteInfo.startY(), newMoteInfo.endY(), newMoteInfo.startZ(), newMoteInfo.endZ());
-        } catch (Exception e1) {
-          logger.error("Exception when creating " + positionerClass + ": ", e1);
-          return;
-        }
-
+       
         ArrayList<Mote> newMotes = new ArrayList<>();
-        while (newMotes.size() < newMoteInfo.numMotes()) {
+        while (newMotes.size() < amountToAdd) {
           try {
-            newMotes.add(newMoteType.generateMote(cooja.getSimulation()));
-          } catch (MoteType.MoteTypeCreationException e2) {
-            JOptionPane.showMessageDialog(frame,
-                    "Could not create mote.\nException message: \"" + e2.getMessage() + "\"\n\n",
-                    "Mote creation failed", JOptionPane.ERROR_MESSAGE);
+            newMotes.add(moteToAdd.generateMote(cooja.getSimulation()));
+          } catch (MoteType.MoteTypeCreationException e) {
+            logger.error(e.getMessage());
             return;
           }
         }
-        // Position new motes.
-        for (var newMote : newMotes) {
-          Position newPosition = newMote.getInterfaces().getPosition();
-          if (newPosition != null) {
-            double[] next = positioner.getNextPosition();
-            newPosition.setCoordinates(next.length > 0 ? next[0] : 0, next.length > 1 ? next[1] : 0, next.length > 2 ? next[2] : 0);
+        
+        for (int i = 0; i < amountToAdd; i++) {
+            Position newPosition = newMotes.get(i).getInterfaces().getPosition();
+            if (newPosition != null) {
+              newPosition.setCoordinates(positions[i][0], positions[i][1], positions[i][2]);
+            }
           }
-        }
-
-        // Set unique mote id's for all new motes.
-        // TODO: ID should be provided differently; not rely on the unsafe MoteID interface.
-        int nextMoteID = 1;
-        for (Mote m : cooja.getSimulation().getMotes()) {
-          int existing = m.getID();
-          if (existing >= nextMoteID) {
-            nextMoteID = existing + 1;
+          int nextMoteID = 1;
+          for (Mote m : cooja.getSimulation().getMotes()) {
+            int existing = m.getID();
+            if (existing >= nextMoteID) {
+              nextMoteID = existing + 1;
+            }
           }
-        }
-        for (Mote m : newMotes) {
-          var moteID = m.getInterfaces().getMoteID();
-          if (moteID != null) {
-            moteID.setMoteID(nextMoteID++);
-          } else {
-            logger.warn("Can't set mote ID (no mote ID interface): " + m);
+          for (Mote m : newMotes) {
+            var moteID = m.getInterfaces().getMoteID();
+            if (moteID != null) {
+              moteID.setMoteID(nextMoteID++);
+            } else {
+              logger.warn("Can't set mote ID (no mote ID interface): " + m);
+            }
           }
-        }
-        for (var mote : newMotes) {
-          cooja.getSimulation().addMote(mote);
-        }
-         */
+          for (var mote : newMotes) {
+            cooja.getSimulation().addMote(mote);
+          }
     }
 
     private void removeMote(Cooja cooja)
