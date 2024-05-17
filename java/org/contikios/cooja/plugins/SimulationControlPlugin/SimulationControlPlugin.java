@@ -110,9 +110,10 @@ public class SimulationControlPlugin implements Plugin {
           }
     }
 
-    private void removeMote(Cooja cooja)
-    {
 
+    public void runSimulation()
+    {
+        simulation.startSimulation(false);
     }
 
     @Override
