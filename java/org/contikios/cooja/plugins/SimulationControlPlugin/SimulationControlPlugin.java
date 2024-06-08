@@ -5,6 +5,8 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
+
 import javax.swing.JInternalFrame;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.DocumentBuilder;
@@ -18,6 +20,7 @@ import org.w3c.dom.Document;
 import org.contikios.cooja.Cooja;
 import org.contikios.cooja.Plugin;
 import org.contikios.cooja.plugins.PowerTracker;
+import org.contikios.cooja.plugins.PowerTracker.MoteTracker;
 import org.contikios.cooja.ClassDescription;
 import org.contikios.cooja.dialogs.CreateSimDialog;
 import org.contikios.cooja.PluginType;
@@ -45,27 +48,7 @@ public class SimulationControlPlugin implements Plugin {
 
     @Override
     public void startPlugin() {
-        logger.error("started");
-        Element root = parseCSCFile("/home/suhaib/uni/fyp/contiki-ng/examples/multicast/multicast.csc");
-        var cfg = new CreateSimDialog.SimConfig("My simulation", "org.contikios.cooja.radiomediums.UDGM", false, 123456, (1000 * Simulation.MILLISECOND));
-        var config = new Simulation.SimConfig(null, cfg.randomSeed(), false, false,
-                Cooja.configuration.logDir(), new HashMap<>());
-        Simulation sim;
-        try {
-            sim = new Simulation(config, cooja, cfg.title(), cfg.generatedSeed(),
-                    cfg.randomSeed(), cfg.radioMedium(), cfg.moteStartDelay(), true, root);
-        } catch (MoteType.MoteTypeCreationException | Cooja.SimulationCreationException ex) {
-            logger.error(ex.toString());
-            return;
-        }
-
-        cooja.setSimulation(sim);
-        simulation = sim;
-        cooja.tryStartPlugin(PowerTracker.class, sim, null);
-        powerTracker = (PowerTracker) cooja.getPlugin(PowerTracker.class);
-        logger.error(powerTracker.radioStatistics(true, true, true));
-        logger.error("hit sim creation");
-
+        logger.error("started SimulationControlPlugin");
         startServerSocket();
     }
 
@@ -103,6 +86,10 @@ public class SimulationControlPlugin implements Plugin {
         String args = parts.length > 1 ? parts[1] : "";
 
         switch (mainCommand) {
+            case "LOAD_CSC":
+                boolean success = loadSimulationFromCSC(args);
+                writer.println(success ? "CSC loaded successfully" : "Failed to load CSC");
+                break;
             case "ADD_MOTE":
                 String[] moteArgs = args.split(",");
                 String moteType = moteArgs[0];
@@ -133,20 +120,70 @@ public class SimulationControlPlugin implements Plugin {
                 writer.println("Simulation stopped");
                 break;
             case "GET_POWER":
-                writer.println(getPowerStatistics());
+                writer.println(getPowerStatisticsString());
                 break;
             default:
                 writer.println("Unknown command: " + mainCommand);
         }
     }
 
-    private String getPowerStatistics() {
-        return powerTracker.radioStatistics(true, true, true);
+    private boolean loadSimulationFromCSC(String cscFilePath) {
+        Element root = parseCSCFile(cscFilePath);
+        if (root == null) {
+            logger.error("Failed to parse CSC file: " + cscFilePath);
+            return false;
+        }
+        var cfg = new CreateSimDialog.SimConfig("My simulation", "org.contikios.cooja.radiomediums.UDGM", false, 123456, (1000 * Simulation.MILLISECOND));
+        var config = new Simulation.SimConfig(null, cfg.randomSeed(), false, false,
+                Cooja.configuration.logDir(), new HashMap<>());
+        try {
+            simulation = new Simulation(config, cooja, cfg.title(), cfg.generatedSeed(),
+                    cfg.randomSeed(), cfg.radioMedium(), cfg.moteStartDelay(), true, root);
+            cooja.setSimulation(simulation);
+            cooja.tryStartPlugin(PowerTracker.class, simulation, null);
+            powerTracker = (PowerTracker) cooja.getPlugin(PowerTracker.class);
+            logger.error(powerTracker.radioStatistics(true, true, true));
+            logger.error("Simulation loaded successfully from CSC file");
+            return true;
+        } catch (MoteType.MoteTypeCreationException | Cooja.SimulationCreationException ex) {
+            logger.error("Error loading simulation from CSC file: " + ex.toString());
+            return false;
+        }
+    }
+
+    private Map<Mote, double[]> getPowerStatistics() {
+        Map<Mote, double[]> powerStats = new HashMap<>();
+        for (Mote mote : simulation.getMotes()) {
+            MoteTracker tracker = getMoteTracker(mote);
+            double[] moteStats = new double[3];
+            moteStats[0] = tracker.radioOnTime;
+            moteStats[1] = tracker.radioTxTime;
+            moteStats[2] = tracker.radioRxTime;
+            powerStats.put(mote, moteStats);
+        }
+        return powerStats;
+    }
+
+    public String getPowerStatisticsString() {
+        StringBuilder sb = new StringBuilder();
+        Map<Mote, double[]> powerStats = getPowerStatistics();
+        for (Map.Entry<Mote, double[]> entry : powerStats.entrySet()) {
+            Mote mote = entry.getKey();
+            double[] stats = entry.getValue();
+            sb.append(mote.getID()).append(":");  // Assuming Mote has getID() method
+            sb.append(stats[0]).append(",").append(stats[1]).append(",").append(stats[2]);
+            sb.append(";");
+        }
+        // Remove the last semicolon
+        if (sb.length() > 0) {
+            sb.setLength(sb.length() - 1);
+        }
+        return sb.toString();
     }
 
     private int addMote(String moteType, int amountToAdd, double[][] positions) {
         MoteType moteToAdd = null;
-        MoteType[] types = simulation.getMoteTypes();
+        MoteType[] types = simulation.  ();
         for (MoteType type : types) {
             if (moteType.equals(type.getDescription())) moteToAdd = type;
         }
