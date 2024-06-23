@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Arrays;
 
 import javax.swing.JInternalFrame;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -49,7 +50,27 @@ public class SimulationControlPlugin implements Plugin {
     @Override
     public void startPlugin() {
         logger.error("started SimulationControlPlugin");
+        loadSimulationFromCSC("/home/suhaib/uni/fyp/contiki-ng/examples/rpl-udp/test.csc");
+        // handleCommand("ADD_MOTE%%Z1 Mote Type #2,6,9.419548524027482,5.851214847556069,0.0,5.355039605898617,6.783914814391493,0.0,1.7319899452007514,2.278350119579542,0.0,1.733560739260399,7.9357566779621935,0.0,6.30043722525555,5.697510464034817,0.0,0.27935522662136836,9.340603617820936,0.0", new PrintWriter(System.out));
+        // int result = addMoteCommand("Sky Mote Type #sky1,5,2.172833652941598,4.253676307162884,0.0,3.918750397080144,7.84758374242387,0.0,2.2956290626347937,2.7102490468873572,0.0,2.7849813478687477,7.795882943088228,0.0,4.627343928932028,5.726254650764148,0.0");
+        // logger.error(Integer.toString(result));
         startServerSocket();
+    }
+
+    private int addMoteCommand(String args)
+    {
+        String[] moteArgs = args.split(",");
+        String moteType = moteArgs[0];
+        int amountToAdd = Integer.parseInt(moteArgs[1]);
+        double[][] positions = new double[amountToAdd][3];
+        for (int i = 0; i < amountToAdd; i++) {
+            positions[i][0] = Double.parseDouble(moteArgs[2 + i * 3]);
+            positions[i][1] = Double.parseDouble(moteArgs[3 + i * 3]);
+            positions[i][2] = Double.parseDouble(moteArgs[4 + i * 3]);
+        }
+        int result = addMote(moteType, amountToAdd, positions); 
+        // writer.println("Motes added: " + Integer.toString(result));
+        return result;
     }
 
     private void startServerSocket() {
@@ -65,7 +86,6 @@ public class SimulationControlPlugin implements Plugin {
     }
 
     private void handleClientConnection(Socket clientSocket) {
-        new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                  PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
 
@@ -77,11 +97,10 @@ public class SimulationControlPlugin implements Plugin {
             } catch (IOException e) {
                 logger.error("Error handling client connection: " + e.getMessage());
             }
-        }).start();
     }
 
     private void handleCommand(String command, PrintWriter writer) {
-        String[] parts = command.split(" ", 2);
+        String[] parts = command.split("%%", 2);
         String mainCommand = parts[0];
         String args = parts.length > 1 ? parts[1] : "";
 
@@ -100,15 +119,18 @@ public class SimulationControlPlugin implements Plugin {
                     positions[i][1] = Double.parseDouble(moteArgs[3 + i * 3]);
                     positions[i][2] = Double.parseDouble(moteArgs[4 + i * 3]);
                 }
-                int result = addMote(moteType, amountToAdd, positions);
-                writer.println("Motes added: " + result);
+                int result = addMote(moteType, amountToAdd, positions); 
+                writer.println("Motes added: " + Integer.toString(result));
                 break;
             case "REMOVE_MOTE":
                 removeMote(Integer.parseInt(args));
                 writer.println("Mote removed");
                 break;
             case "STEP_SIMULATION":
-                stepSimulation();
+                for (int i = 0; i < 120000; i ++)
+                { 
+                    stepSimulation();
+                }
                 writer.println("Simulation stepped");
                 break;
             case "START_SIMULATION":
@@ -137,7 +159,7 @@ public class SimulationControlPlugin implements Plugin {
         var config = new Simulation.SimConfig(null, cfg.randomSeed(), false, false,
                 Cooja.configuration.logDir(), new HashMap<>());
         try {
-            simulation = new Simulation(config, cooja, cfg.title(), cfg.generatedSeed(),
+            this.simulation = new Simulation(config, cooja, cfg.title(), cfg.generatedSeed(),
                     cfg.randomSeed(), cfg.radioMedium(), cfg.moteStartDelay(), true, root);
             cooja.setSimulation(simulation);
             cooja.tryStartPlugin(PowerTracker.class, simulation, null);
@@ -145,33 +167,30 @@ public class SimulationControlPlugin implements Plugin {
             logger.error(powerTracker.radioStatistics(true, true, true));
             logger.error("Simulation loaded successfully from CSC file");
             return true;
-        } catch (MoteType.MoteTypeCreationException | Cooja.SimulationCreationException ex) {
+        } catch (Exception ex) {
             logger.error("Error loading simulation from CSC file: " + ex.toString());
             return false;
         }
     }
 
-    private Map<Mote, double[]> getPowerStatistics() {
-        Map<Mote, double[]> powerStats = new HashMap<>();
-        for (Mote mote : simulation.getMotes()) {
-            MoteTracker tracker = getMoteTracker(mote);
-            double[] moteStats = new double[3];
-            moteStats[0] = tracker.radioOnTime;
-            moteStats[1] = tracker.radioTxTime;
-            moteStats[2] = tracker.radioRxTime;
-            powerStats.put(mote, moteStats);
+    private double[][] getPowerStatistics() {
+        double[][] powerStats = new double[motes.size()][1];
+        for (int i = 0; i < motes.size(); i ++) {
+            Mote mote = motes.get(i);
+            MoteTracker tracker = powerTracker.getMoteTrackerOf(mote);
+            powerStats[i][0] = tracker.getRadioTxRatio() + tracker.getRadioRxRatio();
+            // powerStats[i][1] = tracker.getRadioTxRatio();
+            // powerStats[i][2] = tracker.getRadioRxRatio();
         }
         return powerStats;
     }
 
     public String getPowerStatisticsString() {
         StringBuilder sb = new StringBuilder();
-        Map<Mote, double[]> powerStats = getPowerStatistics();
-        for (Map.Entry<Mote, double[]> entry : powerStats.entrySet()) {
-            Mote mote = entry.getKey();
-            double[] stats = entry.getValue();
-            sb.append(mote.getID()).append(":");  // Assuming Mote has getID() method
-            sb.append(stats[0]).append(",").append(stats[1]).append(",").append(stats[2]);
+        double[][] powerStats = getPowerStatistics();
+        for (int i = 0; i < powerStats.length; i++) {
+            // sb.append(powerStats[i][0]).append(",").append(powerStats[i][1]).append(",").append(powerStats[i][2]);
+            sb.append(powerStats[i][0]);
             sb.append(";");
         }
         // Remove the last semicolon
@@ -183,7 +202,7 @@ public class SimulationControlPlugin implements Plugin {
 
     private int addMote(String moteType, int amountToAdd, double[][] positions) {
         MoteType moteToAdd = null;
-        MoteType[] types = simulation.  ();
+        MoteType[] types = simulation.getMoteTypes();
         for (MoteType type : types) {
             if (moteType.equals(type.getDescription())) moteToAdd = type;
         }
@@ -191,7 +210,7 @@ public class SimulationControlPlugin implements Plugin {
             logger.error("mote type not found: " + moteType);
             return 0;
         }
-
+        
         ArrayList<Mote> newMotes = new ArrayList<>();
         while (newMotes.size() < amountToAdd) {
             try {
@@ -200,8 +219,7 @@ public class SimulationControlPlugin implements Plugin {
                 logger.error(e.getMessage());
                 return 0;
             }
-        }
-
+        }        
         for (int i = 0; i < amountToAdd; i++) {
             Position newPosition = newMotes.get(i).getInterfaces().getPosition();
             if (newPosition != null) {
